@@ -759,8 +759,8 @@ mod tests {
 
     #[test]
     fn constructors_ignore_empty_groups() {
-        assert!(BarChart::new(Vec::<Bar>::new()).data.is_empty());
-        assert!(BarChart::horizontal(Vec::<Bar>::new()).data.is_empty());
+        assert_eq!(BarChart::new(Vec::<Bar>::new()).data, Vec::new());
+        assert_eq!(BarChart::horizontal(Vec::<Bar>::new()).data, Vec::new());
 
         let chart = BarChart::grouped([
             BarGroup::new(Vec::<Bar>::new()),
@@ -1558,5 +1558,19 @@ mod tests {
         let mut buffer = Buffer::empty(Rect::ZERO);
         // This should not panic, even if the buffer has zero size.
         chart.render(buffer.area, &mut buffer);
+    }
+
+    #[test]
+    fn wide_value_label_centered_by_display_width() {
+        // A double-width (CJK) value label must be centered by its display width,
+        // not its byte length. "中文" is 4 columns wide, so in an 8-wide bar it
+        // gets 2 columns of padding on each side. Centering by byte length (6)
+        // would instead give only 1 column on the left.
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 8, 2));
+        let widget = BarChart::default()
+            .bar_width(8)
+            .data(BarGroup::new([Bar::new(1).text_value("中文")]));
+        widget.render(buffer.area, &mut buffer);
+        assert_eq!(buffer, Buffer::with_lines(["████████", "██中文██"]));
     }
 }
