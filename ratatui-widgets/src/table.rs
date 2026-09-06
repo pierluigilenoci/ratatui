@@ -1092,7 +1092,7 @@ impl Table<'_> {
     ) -> usize {
         let last_valid_index = self.rows.len().saturating_sub(1);
 
-        let mut scroll_padding = self.scroll_padding;
+        let mut scroll_padding = self.scroll_padding.min(last_valid_index);
         while scroll_padding > 0 {
             let mut height_around_selected: usize = 0;
             let pad_start = selected.saturating_sub(scroll_padding);
@@ -1108,8 +1108,11 @@ impl Table<'_> {
             scroll_padding -= 1;
         }
 
-        if (selected + scroll_padding).min(last_valid_index) >= last_visible_index {
-            (selected + scroll_padding).min(last_valid_index)
+        let selected_after_padding = selected
+            .saturating_add(scroll_padding)
+            .min(last_valid_index);
+        if selected_after_padding >= last_visible_index {
+            selected_after_padding
         } else if selected.saturating_sub(scroll_padding) < first_visible_index {
             selected.saturating_sub(scroll_padding)
         } else {
@@ -2865,6 +2868,22 @@ mod tests {
             None, // Selected
             2, // Expected offset
             None, // Expected selected
+        )]
+        #[case::maximum_padding_when_all_rows_fit(
+            6, // Render Area Height
+            0, // Offset
+            usize::MAX, // Padding
+            Some(3), // Selected
+            0, // Expected offset
+            Some(3), // Expected selected
+        )]
+        #[case::maximum_padding_when_rows_do_not_fit(
+            4, // Render Area Height
+            0, // Offset
+            usize::MAX, // Padding
+            Some(3), // Selected
+            1, // Expected offset
+            Some(3), // Expected selected
         )]
         fn with_padding(
             #[case] render_height: u16,
