@@ -1091,19 +1091,31 @@ impl Table<'_> {
         last_visible_index: usize,
     ) -> usize {
         let last_valid_index = self.rows.len().saturating_sub(1);
+        if self.scroll_padding == 0 {
+            return selected;
+        }
 
         let mut scroll_padding = self.scroll_padding.min(last_valid_index);
-        while scroll_padding > 0 {
-            let mut height_around_selected: usize = 0;
-            let pad_start = selected.saturating_sub(scroll_padding);
-            let pad_end = selected
-                .saturating_add(scroll_padding)
-                .min(last_valid_index);
-            for index in pad_start..=pad_end {
-                height_around_selected += self.rows[index].height_with_margin() as usize;
+        let pad_start = selected.saturating_sub(scroll_padding);
+        let pad_end = selected
+            .saturating_add(scroll_padding)
+            .min(last_valid_index);
+        let mut height_around_selected = self.rows[pad_start..=pad_end]
+            .iter()
+            .map(|row| row.height_with_margin() as usize)
+            .sum::<usize>();
+
+        while scroll_padding > 0 && height_around_selected > max_height {
+            if let Some(index) = selected.checked_sub(scroll_padding) {
+                height_around_selected = height_around_selected
+                    .saturating_sub(self.rows[index].height_with_margin() as usize);
             }
-            if height_around_selected <= max_height {
-                break;
+            if let Some(index) = selected
+                .checked_add(scroll_padding)
+                .filter(|&index| index <= last_valid_index)
+            {
+                height_around_selected = height_around_selected
+                    .saturating_sub(self.rows[index].height_with_margin() as usize);
             }
             scroll_padding -= 1;
         }
